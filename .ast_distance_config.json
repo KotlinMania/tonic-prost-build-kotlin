@@ -1,0 +1,22 @@
+{
+  "type": "port",
+  "name": "tonic-prost-build-kotlin",
+  "source": {
+    "path": "tmp/tonic-prost-build/src",
+    "lang": "rust"
+  },
+  "target": {
+    "path": "src/commonMain/kotlin/io/github/kotlinmania/tonicprostbuild",
+    "lang": "kotlin"
+  },
+  "checks": {
+    "deep": true,
+    "missing": true,
+    "todos": true,
+    "lint": true
+  },
+  "reexport_modules": [
+    "mod.rs",
+    "lib.rs"
+  ]
+}
