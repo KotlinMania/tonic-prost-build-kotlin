@@ -5,11 +5,11 @@ Based on AST analysis, here are the concrete next steps.
 ## Summary
 
 - **Files Present:** 2/2 (100.0%)
-- **Function parity:** 3/59 matched (target 16) — 5.1%
-- **Class/type parity:** 1/6 matched (target 2) — 16.7%
-- **Combined symbol parity:** 4/65 matched (target 18) — 6.2%
-- **Average inline-code cosine:** 0.04 (function body across 2 matched files)
-- **Average documentation cosine:** 0.21 (doc text across 2 matched files)
+- **Function parity:** 34/59 matched (target 53) — 57.6%
+- **Class/type parity:** 2/6 matched (target 4) — 33.3%
+- **Combined symbol parity:** 36/65 matched (target 57) — 55.4%
+- **Average inline-code cosine:** 0.24 (function body across 2 matched files)
+- **Average documentation cosine:** 0.29 (doc text across 2 matched files)
 - **Cheat-zeroed Files:** 0
 - **Critical Issues:** 2 files with <0.60 function similarity
 
@@ -30,13 +30,13 @@ Every matched file is listed below with function and type symbol parity.
 ### 1. lib
 
 - **Target:** `tonicprostbuild.Lib`
-- **Similarity:** 0.01
+- **Similarity:** 0.42
 - **Dependents:** 0
-- **Priority Score:** 515409.9
-- **Functions:** 2/48 matched (target 5)
-- **Missing functions:** `configure`, `compile_protos`, `compile_fds`, `new`, `name`, `package`, `identifier`, `methods`, `comment`, `client_streaming`, `server_streaming`, `codec_path`, `deprecated`, `generate`, `build_client`, `build_server`, `build_transport`, `out_dir`, `extern_path`, `field_attribute`, `message_attribute`, `enum_attribute`, `type_attribute`, `boxed`, `btree_map`, `bytes`, `server_mod_attribute`, `server_attribute`, `trait_attribute`, `client_mod_attribute`, `client_attribute`, `proto_path`, `compile_well_known_types`, `emit_package`, `file_descriptor_set_path`, `skip_protoc_run`, `protoc_arg`, `include_file`, `emit_rerun_if_changed`, `disable_comments`, `use_arc_self`, `generate_default_stubs`, `skip_debug`, `compile_with_config`, `compile_fds_with_config`, `service_generator`
-- **Types:** 1/6 matched (target 1)
-- **Missing types:** `TonicBuildService`, `Method`, `Comment`, `ServiceGenerator`, `Builder`
+- **Priority Score:** 195405.8
+- **Functions:** 33/48 matched (target 40)
+- **Missing functions:** `compile_protos`, `compile_fds`, `new`, `name`, `package`, `identifier`, `methods`, `comment`, `client_streaming`, `server_streaming`, `deprecated`, `generate`, `compile_with_config`, `compile_fds_with_config`, `service_generator`
+- **Types:** 2/6 matched (target 3)
+- **Missing types:** `TonicBuildService`, `Method`, `Comment`, `ServiceGenerator`
 
 ### 2. tests
 
@@ -44,7 +44,7 @@ Every matched file is listed below with function and type symbol parity.
 - **Similarity:** 0.06
 - **Dependents:** 0
 - **Priority Score:** 101109.4
-- **Functions:** 1/11 matched
+- **Functions:** 1/11 matched (target 13)
 - **Missing functions:** `test_request_response_name_google_types_not_compiled`, `test_request_response_name_google_types_compiled`, `test_request_response_name_non_path_types`, `test_request_response_name_extern_types`, `test_request_response_name_regular_protobuf_types`, `test_request_response_name_different_proto_paths`, `test_request_response_name_mixed_types`, `test_is_google_type`, `test_non_path_type_allowlist`, `test_edge_cases`
 - **Types:** 0/0 matched (target 1)
 - **Missing types:** _none_
