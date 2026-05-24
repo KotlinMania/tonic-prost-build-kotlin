@@ -11,7 +11,7 @@ class LibTest {
         TonicBuildMethod(
             inputType = inputType,
             outputType = outputType,
-            codecPath = "tonic_prost::ProstCodec",
+            codecPathValue = "tonic_prost::ProstCodec",
         )
 
     @Test
@@ -123,6 +123,43 @@ class LibTest {
         assertTrue(builder.generateDefaultStubs)
         assertEquals("my.Codec", builder.codecPath)
         assertEquals(setOf(".pkg.Request", ".pkg.Response"), builder.skipDebug)
+    }
+
+    @Test
+    fun tonicBuildServiceWrapsProstServiceMetadata() {
+        val service = ProstService(
+            name = "Greeter",
+            packageName = "helloworld",
+            protoName = "GreeterService",
+            comments = ProstComments(leading = listOf("Service documentation.")),
+            methods = listOf(
+                ProstMethod(
+                    name = "SayHello",
+                    protoName = "sayHello",
+                    comments = ProstComments(leading = listOf("Method documentation.")),
+                    inputType = ".helloworld.HelloRequest",
+                    outputType = ".helloworld.HelloReply",
+                    clientStreaming = true,
+                    serverStreaming = false,
+                    deprecated = true,
+                ),
+            ),
+        )
+
+        val wrappedService = TonicBuildService(service, "custom.Codec")
+        val wrappedMethod = wrappedService.methods().single()
+
+        assertEquals("Greeter", wrappedService.name())
+        assertEquals("helloworld", wrappedService.packageName())
+        assertEquals("GreeterService", wrappedService.identifier())
+        assertEquals(listOf("Service documentation."), wrappedService.comment())
+        assertEquals("SayHello", wrappedMethod.name())
+        assertEquals("sayHello", wrappedMethod.identifier())
+        assertEquals(listOf("Method documentation."), wrappedMethod.comment())
+        assertTrue(wrappedMethod.clientStreaming())
+        assertFalse(wrappedMethod.serverStreaming())
+        assertTrue(wrappedMethod.deprecated())
+        assertEquals("custom.Codec", wrappedMethod.codecPath())
     }
 
     @Test

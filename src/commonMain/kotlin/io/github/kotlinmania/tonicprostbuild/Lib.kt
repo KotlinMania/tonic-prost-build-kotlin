@@ -31,11 +31,108 @@ internal data class CodegenAttributes(
 
 internal val NON_PATH_TYPE_ALLOWLIST: Set<String> = setOf("()")
 
+internal data class ProstComments(
+    val leading: List<String> = emptyList(),
+    val trailing: List<String> = emptyList(),
+    val leadingDetached: List<String> = emptyList(),
+)
+
+internal data class ProstMethod(
+    val name: String,
+    val protoName: String,
+    val comments: ProstComments = ProstComments(),
+    val inputType: String,
+    val outputType: String,
+    val inputProtoType: String = inputType,
+    val outputProtoType: String = outputType,
+    val clientStreaming: Boolean = false,
+    val serverStreaming: Boolean = false,
+    val deprecated: Boolean = false,
+)
+
+internal data class ProstService(
+    val name: String,
+    val packageName: String,
+    val protoName: String,
+    val comments: ProstComments = ProstComments(),
+    val methods: List<ProstMethod> = emptyList(),
+)
+
+/**
+ * Newtype wrapper for prost to add tonic-specific extensions.
+ */
+internal data class TonicBuildService(
+    val prostService: ProstService,
+    private val wrappedMethods: List<TonicBuildMethod>,
+) {
+    constructor(prostService: ProstService, codecPath: String) : this(
+        prostService = prostService,
+        wrappedMethods = prostService.methods.map { prostMethod ->
+            TonicBuildMethod(
+                inputType = prostMethod.inputType,
+                outputType = prostMethod.outputType,
+                codecPathValue = codecPath,
+                methodName = prostMethod.name,
+                methodIdentifier = prostMethod.protoName,
+                comments = prostMethod.comments,
+                methodClientStreaming = prostMethod.clientStreaming,
+                methodServerStreaming = prostMethod.serverStreaming,
+                isDeprecated = prostMethod.deprecated,
+            )
+        },
+    )
+
+    fun name(): String =
+        prostService.name
+
+    fun packageName(): String =
+        prostService.packageName
+
+    fun identifier(): String =
+        prostService.protoName
+
+    fun methods(): List<TonicBuildMethod> =
+        wrappedMethods
+
+    fun comment(): List<String> =
+        prostService.comments.leading
+}
+
+/**
+ * Newtype wrapper for prost to add tonic-specific extensions.
+ */
 internal data class TonicBuildMethod(
     val inputType: String,
     val outputType: String,
-    val codecPath: String = "tonic_prost::ProstCodec",
+    val codecPathValue: String = "tonic_prost::ProstCodec",
+    val methodName: String = "",
+    val methodIdentifier: String = "",
+    val comments: ProstComments = ProstComments(),
+    val methodClientStreaming: Boolean = false,
+    val methodServerStreaming: Boolean = false,
+    val isDeprecated: Boolean = false,
 ) {
+    fun name(): String =
+        methodName
+
+    fun identifier(): String =
+        methodIdentifier
+
+    fun clientStreaming(): Boolean =
+        methodClientStreaming
+
+    fun serverStreaming(): Boolean =
+        methodServerStreaming
+
+    fun comment(): List<String> =
+        comments.leading
+
+    fun codecPath(): String =
+        codecPathValue
+
+    fun deprecated(): Boolean =
+        isDeprecated
+
     fun requestResponseName(
         protoPath: String,
         compileWellKnownTypes: Boolean,
