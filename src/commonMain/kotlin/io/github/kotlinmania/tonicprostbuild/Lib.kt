@@ -458,4 +458,49 @@ public class Builder internal constructor(
      */
     public fun skipDebug(paths: Iterable<String>): Builder =
         copy(skipDebug = skipDebug + paths)
+
+    /**
+     * Build a ServiceGenerator snapshot of this builder's codegen configuration.
+     */
+    internal fun toServiceGenerator(): ServiceGenerator =
+        ServiceGenerator(
+            buildClient = buildClient,
+            buildServer = buildServer,
+            buildTransport = buildTransport,
+            clientAttributes = clientAttributes,
+            serverAttributes = serverAttributes,
+            useArcSelf = useArcSelf,
+            generateDefaultStubs = generateDefaultStubs,
+            protoPath = protoPath,
+            compileWellKnownTypes = compileWellKnownTypes,
+            codecPath = codecPath,
+            disableComments = disableComments,
+        )
+}
+
+/**
+ * Snapshot of the configuration a Builder hands to the underlying prost-build
+ * service-generator boundary. Pure config; the actual code emission requires
+ * the unported tonic-build-kotlin CodeGenBuilder and prost-build-kotlin Config
+ * siblings (both effectively empty as of 2026-05-25).
+ */
+internal data class ServiceGenerator(
+    val buildClient: Boolean,
+    val buildServer: Boolean,
+    val buildTransport: Boolean,
+    val clientAttributes: CodegenAttributes,
+    val serverAttributes: CodegenAttributes,
+    val useArcSelf: Boolean,
+    val generateDefaultStubs: Boolean,
+    val protoPath: String,
+    val compileWellKnownTypes: Boolean,
+    val codecPath: String,
+    val disableComments: Set<String>,
+) {
+    // Upstream impl prost_build::ServiceGenerator::generate(service, buf):
+    // wraps the prost Service in TonicBuildService, drives tonic_build::CodeGenBuilder
+    // for both client and server, accumulates a proc_macro2::TokenStream, then
+    // prettyplease::unparse-es it onto buf. The Kotlin port cannot translate
+    // this body until tonic-build-kotlin and prost-build-kotlin publish the
+    // CodeGenBuilder / Config / ServiceGenerator surfaces it depends on.
 }

@@ -305,6 +305,41 @@ class LibTest {
     }
 
     @Test
+    fun serviceGeneratorSnapshotsBuilderCodegenConfig() {
+        val builder = configure()
+            .buildClient(false)
+            .buildTransport(false)
+            .protoPath("crate::proto")
+            .compileWellKnownTypes(true)
+            .useArcSelf(true)
+            .generateDefaultStubs(true)
+            .codecPath("my.Codec")
+            .disableComments(listOf(".pkg.Service"))
+            .serverAttribute(".pkg.Service", "@Deprecated")
+            .clientAttribute(".pkg.Service", "@Deprecated")
+
+        val generator = builder.toServiceGenerator()
+
+        assertFalse(generator.buildClient)
+        assertTrue(generator.buildServer)
+        assertFalse(generator.buildTransport)
+        assertTrue(generator.useArcSelf)
+        assertTrue(generator.generateDefaultStubs)
+        assertTrue(generator.compileWellKnownTypes)
+        assertEquals("crate::proto", generator.protoPath)
+        assertEquals("my.Codec", generator.codecPath)
+        assertEquals(setOf(".pkg.Service"), generator.disableComments)
+        assertEquals(
+            CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
+            generator.serverAttributes,
+        )
+        assertEquals(
+            CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
+            generator.clientAttributes,
+        )
+    }
+
+    @Test
     fun edgeCases() {
         val multipleDots = createTestMethod("a.b.c.d.Message", "x.y.z.Response")
         val (request, response) = multipleDots.requestResponseName("super", false)
