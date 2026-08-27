@@ -1,4 +1,4 @@
-import XCTest
+import Testing
 import TonicProstBuild
 
 // Smoke test for the Kotlin → Swift Export → SPM → swift test pipeline.
@@ -28,8 +28,8 @@ import TonicProstBuild
 // Add more meaningful per-API tests below as the Swift Export surface
 // grows. For now the import + a single passing assertion is the
 // canary that the pipeline is green for this repo.
-final class TonicProstBuildExportTests: XCTestCase {
-    func testSwiftModuleLoads() throws {
-        XCTAssertTrue(true, "TonicProstBuild swift module imported cleanly")
+@Suite struct TonicProstBuildExportTests {
+    @Test func testSwiftModuleLoads() {
+        #expect(Bool(true), "TonicProstBuild swift module imported cleanly")
     }
 }
