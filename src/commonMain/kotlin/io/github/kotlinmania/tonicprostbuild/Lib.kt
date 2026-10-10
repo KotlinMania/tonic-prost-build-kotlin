@@ -23,18 +23,18 @@ public data class FileDescriptorSet(
  */
 public class Config {
     public var outDir: String? = null
-    public val externPaths: MutableList<Pair<String, String>> = mutableListOf()
-    public val fieldAttributes: MutableList<Pair<String, String>> = mutableListOf()
-    public val messageAttributes: MutableList<Pair<String, String>> = mutableListOf()
-    public val enumAttributes: MutableList<Pair<String, String>> = mutableListOf()
-    public val typeAttributes: MutableList<Pair<String, String>> = mutableListOf()
-    public val boxedPaths: MutableList<String> = mutableListOf()
-    public var btreeMapPaths: List<String>? = null
-    public var bytesPaths: List<String>? = null
+    internal val externPaths: MutableList<Pair<String, String>> = mutableListOf()
+    internal val fieldAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    internal val messageAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    internal val enumAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    internal val typeAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    internal val boxedPaths: MutableList<String> = mutableListOf()
+    internal var btreeMapPaths: List<String>? = null
+    internal var bytesPaths: List<String>? = null
     public var wellKnownTypesCompiled: Boolean = false
-    public val protocArgs: MutableList<String> = mutableListOf()
+    internal val protocArgs: MutableList<String> = mutableListOf()
     public var includeFile: String? = null
-    public val skipDebug: MutableSet<String> = mutableSetOf()
+    internal val skipDebugPaths: MutableSet<String> = mutableSetOf()
     public var fileDescriptorSetPath: String? = null
     public var protocRunSkipped: Boolean = false
     internal var serviceGenerator: ServiceGenerator? = null
@@ -99,8 +99,8 @@ public class Config {
         return this
     }
 
-    public fun skipDebug(paths: Set<String>): Config {
-        skipDebug.addAll(paths)
+    public fun skipDebug(paths: Iterable<String>): Config {
+        skipDebugPaths.addAll(paths)
         return this
     }
 
@@ -207,19 +207,20 @@ internal data class TonicBuildService(
 ) {
     constructor(prostService: ProstService, codecPath: String) : this(
         prostService = prostService,
-        wrappedMethods = prostService.methods.map { prostMethod ->
-            TonicBuildMethod(
-                inputType = prostMethod.inputType,
-                outputType = prostMethod.outputType,
-                codecPathValue = codecPath,
-                methodName = prostMethod.name,
-                methodIdentifier = prostMethod.protoName,
-                comments = prostMethod.comments,
-                methodClientStreaming = prostMethod.clientStreaming,
-                methodServerStreaming = prostMethod.serverStreaming,
-                isDeprecated = prostMethod.deprecated,
-            )
-        },
+        wrappedMethods =
+            prostService.methods.map { prostMethod ->
+                TonicBuildMethod(
+                    inputType = prostMethod.inputType,
+                    outputType = prostMethod.outputType,
+                    codecPathValue = codecPath,
+                    methodName = prostMethod.name,
+                    methodIdentifier = prostMethod.protoName,
+                    comments = prostMethod.comments,
+                    methodClientStreaming = prostMethod.clientStreaming,
+                    methodServerStreaming = prostMethod.serverStreaming,
+                    isDeprecated = prostMethod.deprecated,
+                )
+            },
     )
 
     fun name(): String =
@@ -355,14 +356,15 @@ internal data class ServiceGenerator(
 ) {
     fun generate(service: ProstService, buf: StringBuilder) {
         val tonicService = TonicBuildService.new(service, codecPath)
-        val output = buildString {
-            if (buildClient) {
-                appendLine("// Generated Client for ${tonicService.name()} in ${tonicService.`package`()}")
+        val output =
+            buildString {
+                if (buildClient) {
+                    appendLine("// Generated Client for ${tonicService.name()} in ${tonicService.`package`()}")
+                }
+                if (buildServer) {
+                    appendLine("// Generated Server for ${tonicService.name()} in ${tonicService.`package`()}")
+                }
             }
-            if (buildServer) {
-                appendLine("// Generated Server for ${tonicService.name()} in ${tonicService.`package`()}")
-            }
-        }
         buf.append(output)
     }
 
@@ -720,19 +722,20 @@ public class Builder internal constructor(
             config.skipProtocRun()
         }
         if (buildClient || buildServer) {
-            val serviceGen = ServiceGenerator.new(
-                buildClient = buildClient,
-                buildServer = buildServer,
-                buildTransport = buildTransport,
-                clientAttributes = clientAttributes,
-                serverAttributes = serverAttributes,
-                useArcSelf = useArcSelf,
-                generateDefaultStubs = generateDefaultStubs,
-                protoPath = protoPath,
-                compileWellKnownTypes = compileWellKnownTypes,
-                codecPath = codecPath,
-                disableComments = disableComments,
-            )
+            val serviceGen =
+                ServiceGenerator.new(
+                    buildClient = buildClient,
+                    buildServer = buildServer,
+                    buildTransport = buildTransport,
+                    clientAttributes = clientAttributes,
+                    serverAttributes = serverAttributes,
+                    useArcSelf = useArcSelf,
+                    generateDefaultStubs = generateDefaultStubs,
+                    protoPath = protoPath,
+                    compileWellKnownTypes = compileWellKnownTypes,
+                    codecPath = codecPath,
+                    disableComments = disableComments,
+                )
             config.serviceGenerator(serviceGen)
         }
         config.compileProtos(protos, includes)
@@ -790,19 +793,20 @@ public class Builder internal constructor(
             config.skipProtocRun()
         }
         if (buildClient || buildServer) {
-            val serviceGen = ServiceGenerator.new(
-                buildClient = buildClient,
-                buildServer = buildServer,
-                buildTransport = buildTransport,
-                clientAttributes = clientAttributes,
-                serverAttributes = serverAttributes,
-                useArcSelf = useArcSelf,
-                generateDefaultStubs = generateDefaultStubs,
-                protoPath = protoPath,
-                compileWellKnownTypes = compileWellKnownTypes,
-                codecPath = codecPath,
-                disableComments = disableComments,
-            )
+            val serviceGen =
+                ServiceGenerator.new(
+                    buildClient = buildClient,
+                    buildServer = buildServer,
+                    buildTransport = buildTransport,
+                    clientAttributes = clientAttributes,
+                    serverAttributes = serverAttributes,
+                    useArcSelf = useArcSelf,
+                    generateDefaultStubs = generateDefaultStubs,
+                    protoPath = protoPath,
+                    compileWellKnownTypes = compileWellKnownTypes,
+                    codecPath = codecPath,
+                    disableComments = disableComments,
+                )
             config.serviceGenerator(serviceGen)
         }
         config.compileFds(fds)
