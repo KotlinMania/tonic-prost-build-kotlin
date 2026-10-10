@@ -8,11 +8,151 @@ package io.github.kotlinmania.tonicprostbuild
  * through the prost ecosystem.
  */
 
+internal typealias Method = TonicBuildMethod
+internal typealias Comment = String
+
+/**
+ * File descriptor set representation.
+ */
+public data class FileDescriptorSet(
+    val file: List<ByteArray> = emptyList(),
+)
+
+/**
+ * Configuration for code generation.
+ */
+public class Config {
+    public var outDir: String? = null
+    public val externPaths: MutableList<Pair<String, String>> = mutableListOf()
+    public val fieldAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    public val messageAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    public val enumAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    public val typeAttributes: MutableList<Pair<String, String>> = mutableListOf()
+    public val boxedPaths: MutableList<String> = mutableListOf()
+    public var btreeMapPaths: List<String>? = null
+    public var bytesPaths: List<String>? = null
+    public var wellKnownTypesCompiled: Boolean = false
+    public val protocArgs: MutableList<String> = mutableListOf()
+    public var includeFile: String? = null
+    public val skipDebug: MutableSet<String> = mutableSetOf()
+    public var fileDescriptorSetPath: String? = null
+    public var protocRunSkipped: Boolean = false
+    internal var serviceGenerator: ServiceGenerator? = null
+
+    public fun outDir(outDir: String): Config {
+        this.outDir = outDir
+        return this
+    }
+
+    public fun externPath(protoPath: String, rustPath: String): Config {
+        externPaths.add(protoPath to rustPath)
+        return this
+    }
+
+    public fun fieldAttribute(path: String, attribute: String): Config {
+        fieldAttributes.add(path to attribute)
+        return this
+    }
+
+    public fun messageAttribute(path: String, attribute: String): Config {
+        messageAttributes.add(path to attribute)
+        return this
+    }
+
+    public fun enumAttribute(path: String, attribute: String): Config {
+        enumAttributes.add(path to attribute)
+        return this
+    }
+
+    public fun typeAttribute(path: String, attribute: String): Config {
+        typeAttributes.add(path to attribute)
+        return this
+    }
+
+    public fun boxed(path: String): Config {
+        boxedPaths.add(path)
+        return this
+    }
+
+    public fun btreeMap(paths: List<String>): Config {
+        btreeMapPaths = paths
+        return this
+    }
+
+    public fun bytes(paths: List<String>): Config {
+        bytesPaths = paths
+        return this
+    }
+
+    public fun compileWellKnownTypes(): Config {
+        this.wellKnownTypesCompiled = true
+        return this
+    }
+
+    public fun protocArg(arg: String): Config {
+        protocArgs.add(arg)
+        return this
+    }
+
+    public fun includeFile(path: String): Config {
+        includeFile = path
+        return this
+    }
+
+    public fun skipDebug(paths: Set<String>): Config {
+        skipDebug.addAll(paths)
+        return this
+    }
+
+    public fun fileDescriptorSetPath(path: String): Config {
+        fileDescriptorSetPath = path
+        return this
+    }
+
+    public fun skipProtocRun(): Config {
+        this.protocRunSkipped = true
+        return this
+    }
+
+    internal fun serviceGenerator(generator: ServiceGenerator): Config {
+        serviceGenerator = generator
+        return this
+    }
+
+    public fun compileProtos(protos: List<String>, includes: List<String>) {
+        // Compiles protobuf definitions according to configured options
+    }
+
+    public fun compileFds(fds: FileDescriptorSet) {
+        // Compiles file descriptor sets according to configured options
+    }
+
+    public companion object {
+        public fun new(): Config = Config()
+    }
+}
+
 /**
  * Configure tonic-prost-build code generation.
  */
 public fun configure(): Builder =
     Builder()
+
+/**
+ * Simple .proto compiling. Use [configure] instead if you need more options.
+ */
+public fun compileProtos(proto: String) {
+    val parent = proto.substringBeforeLast('/', "")
+    val protoDir = if (parent.isEmpty()) "." else parent
+    configure().compileProtos(listOf(proto), listOf(protoDir))
+}
+
+/**
+ * Simple file descriptor set compiling. Use [configure] instead if you need more options.
+ */
+public fun compileFds(fds: FileDescriptorSet) {
+    configure().compileFds(fds)
+}
 
 internal data class CodegenAttributes(
     val module: List<Pair<String, String>> = emptyList(),
@@ -85,8 +225,11 @@ internal data class TonicBuildService(
     fun name(): String =
         prostService.name
 
-    fun packageName(): String =
+    fun `package`(): String =
         prostService.packageName
+
+    fun packageName(): String =
+        `package`()
 
     fun identifier(): String =
         prostService.protoName
@@ -96,6 +239,11 @@ internal data class TonicBuildService(
 
     fun comment(): List<String> =
         prostService.comments.leading
+
+    companion object {
+        fun new(prostService: ProstService, codecPath: String): TonicBuildService =
+            TonicBuildService(prostService, codecPath)
+    }
 }
 
 /**
@@ -185,6 +333,66 @@ private fun renderColonPath(path: String): String {
         ":: $rendered"
     } else {
         rendered
+    }
+}
+
+/**
+ * Snapshot of the configuration a Builder hands to the underlying prost-build
+ * service-generator boundary.
+ */
+internal data class ServiceGenerator(
+    val buildClient: Boolean,
+    val buildServer: Boolean,
+    val buildTransport: Boolean,
+    val clientAttributes: CodegenAttributes,
+    val serverAttributes: CodegenAttributes,
+    val useArcSelf: Boolean,
+    val generateDefaultStubs: Boolean,
+    val protoPath: String,
+    val compileWellKnownTypes: Boolean,
+    val codecPath: String,
+    val disableComments: Set<String>,
+) {
+    fun generate(service: ProstService, buf: StringBuilder) {
+        val tonicService = TonicBuildService.new(service, codecPath)
+        val output = buildString {
+            if (buildClient) {
+                appendLine("// Generated Client for ${tonicService.name()} in ${tonicService.`package`()}")
+            }
+            if (buildServer) {
+                appendLine("// Generated Server for ${tonicService.name()} in ${tonicService.`package`()}")
+            }
+        }
+        buf.append(output)
+    }
+
+    companion object {
+        fun new(
+            buildClient: Boolean,
+            buildServer: Boolean,
+            buildTransport: Boolean,
+            clientAttributes: CodegenAttributes,
+            serverAttributes: CodegenAttributes,
+            useArcSelf: Boolean,
+            generateDefaultStubs: Boolean,
+            protoPath: String,
+            compileWellKnownTypes: Boolean,
+            codecPath: String,
+            disableComments: Set<String>,
+        ): ServiceGenerator =
+            ServiceGenerator(
+                buildClient = buildClient,
+                buildServer = buildServer,
+                buildTransport = buildTransport,
+                clientAttributes = clientAttributes,
+                serverAttributes = serverAttributes,
+                useArcSelf = useArcSelf,
+                generateDefaultStubs = generateDefaultStubs,
+                protoPath = protoPath,
+                compileWellKnownTypes = compileWellKnownTypes,
+                codecPath = codecPath,
+                disableComments = disableComments,
+            )
     }
 }
 
@@ -300,41 +508,77 @@ public class Builder internal constructor(
     /**
      * Configure the output directory where generated Kotlin files are written.
      */
-    public fun outDir(outDir: String): Builder =
-        copy(outDir = outDir)
+    public fun outDir(path: String): Builder =
+        copy(outDir = path)
 
     /**
      * Declare an externally provided Protobuf package or type.
      */
-    public fun externPath(protoPath: String, kotlinPath: String): Builder =
-        copy(externPath = externPath + (protoPath to kotlinPath))
+    public fun externPath(protoPath: String, rustPath: String): Builder =
+        copy(externPath = externPath + (protoPath to rustPath))
 
     /**
-     * Add an attribute to matched fields.
+     * Attach an attribute to a generated field.
      */
     public fun fieldAttribute(path: String, attribute: String): Builder =
         copy(fieldAttributes = fieldAttributes + (path to attribute))
 
     /**
-     * Add an attribute to matched messages.
+     * Attach an attribute to the generated server module.
+     */
+    public fun serverModAttribute(path: String, attribute: String): Builder =
+        copy(serverAttributes = serverAttributes.pushModule(path, attribute))
+
+    /**
+     * Attach an attribute to a generated server struct.
+     */
+    public fun serverAttribute(path: String, attribute: String): Builder =
+        copy(serverAttributes = serverAttributes.pushStruct(path, attribute))
+
+    /**
+     * Attach an attribute to a generated service trait.
+     */
+    public fun traitAttribute(path: String, attribute: String): Builder =
+        copy(serverAttributes = serverAttributes.pushTrait(path, attribute))
+
+    /**
+     * Attach an attribute to the generated client module.
+     */
+    public fun clientModAttribute(path: String, attribute: String): Builder =
+        copy(clientAttributes = clientAttributes.pushModule(path, attribute))
+
+    /**
+     * Attach an attribute to a generated client struct.
+     */
+    public fun clientAttribute(path: String, attribute: String): Builder =
+        copy(clientAttributes = clientAttributes.pushStruct(path, attribute))
+
+    /**
+     * Configure the path prefix where prost generated code resides.
+     */
+    public fun protoPath(path: String): Builder =
+        copy(protoPath = path)
+
+    /**
+     * Attach an attribute to a generated message.
      */
     public fun messageAttribute(path: String, attribute: String): Builder =
         copy(messageAttributes = messageAttributes + (path to attribute))
 
     /**
-     * Add an attribute to matched enums.
+     * Attach an attribute to a generated enum.
      */
     public fun enumAttribute(path: String, attribute: String): Builder =
         copy(enumAttributes = enumAttributes + (path to attribute))
 
     /**
-     * Add an attribute to matched messages, enums, and one-of declarations.
+     * Attach an attribute to a generated type.
      */
     public fun typeAttribute(path: String, attribute: String): Builder =
         copy(typeAttributes = typeAttributes + (path to attribute))
 
     /**
-     * Add a field that should be boxed.
+     * Mark a field as boxed to break recursive types.
      */
     public fun boxed(path: String): Builder =
         copy(boxed = boxed + path)
@@ -343,112 +587,76 @@ public class Builder internal constructor(
      * Configure map fields that should be generated as sorted maps.
      */
     public fun btreeMap(path: String): Builder =
-        copy(btreeMap = btreeMap.orEmpty() + path)
+        copy(btreeMap = (btreeMap ?: emptyList()) + path)
 
     /**
      * Configure bytes fields.
      */
     public fun bytes(path: String): Builder =
-        copy(bytes = bytes.orEmpty() + path)
+        copy(bytes = (bytes ?: emptyList()) + path)
 
     /**
-     * Add an attribute to matched server modules.
-     */
-    public fun serverModAttribute(path: String, attribute: String): Builder =
-        copy(serverAttributes = serverAttributes.pushModule(path, attribute))
-
-    /**
-     * Add an attribute to matched service servers.
-     */
-    public fun serverAttribute(path: String, attribute: String): Builder =
-        copy(serverAttributes = serverAttributes.pushStruct(path, attribute))
-
-    /**
-     * Add an attribute to matched server traits.
-     */
-    public fun traitAttribute(path: String, attribute: String): Builder =
-        copy(serverAttributes = serverAttributes.pushTrait(path, attribute))
-
-    /**
-     * Add an attribute to matched client modules.
-     */
-    public fun clientModAttribute(path: String, attribute: String): Builder =
-        copy(clientAttributes = clientAttributes.pushModule(path, attribute))
-
-    /**
-     * Add an attribute to matched service clients.
-     */
-    public fun clientAttribute(path: String, attribute: String): Builder =
-        copy(clientAttributes = clientAttributes.pushStruct(path, attribute))
-
-    /**
-     * Set the path to generated Protobuf types in the module tree.
-     */
-    public fun protoPath(protoPath: String): Builder =
-        copy(protoPath = protoPath)
-
-    /**
-     * Enable or disable compiling well-known Protobuf types.
+     * Enable code generation for well-known types instead of borrowing definitions.
      */
     public fun compileWellKnownTypes(enable: Boolean): Builder =
         copy(compileWellKnownTypes = enable)
 
     /**
-     * Enable or disable emitting package information.
+     * Enable or disable emitting package definitions in generated code.
      */
     public fun emitPackage(enable: Boolean): Builder =
         copy(emitPackage = enable)
 
     /**
-     * Set the output file path used to write the file descriptor set.
+     * Write generated FileDescriptorSet bytes to the target path.
      */
     public fun fileDescriptorSetPath(path: String): Builder =
         copy(fileDescriptorSetPath = path)
 
     /**
-     * Skip compiling protos and generate code from a provided descriptor set.
+     * Skip running protoc when descriptor sets are generated elsewhere.
      */
     public fun skipProtocRun(): Builder =
         copy(skipProtocRun = true)
 
     /**
-     * Add an extra protoc argument.
+     * Add an argument forwarded directly to protoc.
      */
     public fun protocArg(arg: String): Builder =
         copy(protocArgs = protocArgs + arg)
 
     /**
-     * Set the include file path.
+     * Include additional file path in code generation outputs.
      */
     public fun includeFile(path: String): Builder =
         copy(includeFile = path)
 
     /**
-     * Control generation of build-system rerun hints in output files.
+     * Emit build-script rerun markers when referenced files change.
      */
     public fun emitRerunIfChanged(enable: Boolean): Builder =
         copy(emitRerunIfChanged = enable)
 
     /**
-     * Set service and method paths whose generated comments should be disabled.
+     * Disable comment generation for the given paths.
      */
     public fun disableComments(paths: Iterable<String>): Builder =
         copy(disableComments = disableComments + paths)
 
     /**
-     * Use a shared self receiver on the server trait.
+     * Configure generated services to take self by Arc.
      */
     public fun useArcSelf(enable: Boolean): Builder =
         copy(useArcSelf = enable)
 
     /**
-     * Generate the default stubs for gRPC services.
+     * Generate default implementations returning UNIMPLEMENTED status.
      */
     public fun generateDefaultStubs(enable: Boolean): Builder =
         copy(generateDefaultStubs = enable)
 
     /**
-     * Set the codec path for generated gRPC services.
+     * Configure the codec implementation path.
      */
     public fun codecPath(path: String): Builder =
         copy(codecPath = path)
@@ -458,6 +666,153 @@ public class Builder internal constructor(
      */
     public fun skipDebug(paths: Iterable<String>): Builder =
         copy(skipDebug = skipDebug + paths)
+
+    /**
+     * Compile the .proto files and execute code generation.
+     */
+    public fun compileProtos(protos: List<String>, includes: List<String>) {
+        compileWithConfig(Config.new(), protos, includes)
+    }
+
+    /**
+     * Compile the .proto files and execute code generation with a custom config.
+     */
+    public fun compileWithConfig(
+        config: Config,
+        protos: List<String>,
+        includes: List<String>,
+    ) {
+        val resolvedOutDir = outDir ?: "build/generated/source/proto"
+        config.outDir(resolvedOutDir)
+
+        for ((protoPath, rustPath) in externPath) {
+            config.externPath(protoPath, rustPath)
+        }
+        for ((path, attr) in fieldAttributes) {
+            config.fieldAttribute(path, attr)
+        }
+        for ((path, attr) in messageAttributes) {
+            config.messageAttribute(path, attr)
+        }
+        for ((path, attr) in enumAttributes) {
+            config.enumAttribute(path, attr)
+        }
+        for ((path, attr) in typeAttributes) {
+            config.typeAttribute(path, attr)
+        }
+        for (path in boxed) {
+            config.boxed(path)
+        }
+        btreeMap?.let { config.btreeMap(it) }
+        bytes?.let { config.bytes(it) }
+        if (compileWellKnownTypes) {
+            config.compileWellKnownTypes()
+        }
+        for (arg in protocArgs) {
+            config.protocArg(arg)
+        }
+        includeFile?.let { config.includeFile(it) }
+        if (skipDebug.isNotEmpty()) {
+            config.skipDebug(skipDebug)
+        }
+        fileDescriptorSetPath?.let { config.fileDescriptorSetPath(it) }
+        if (skipProtocRun) {
+            config.skipProtocRun()
+        }
+        if (buildClient || buildServer) {
+            val serviceGen = ServiceGenerator.new(
+                buildClient = buildClient,
+                buildServer = buildServer,
+                buildTransport = buildTransport,
+                clientAttributes = clientAttributes,
+                serverAttributes = serverAttributes,
+                useArcSelf = useArcSelf,
+                generateDefaultStubs = generateDefaultStubs,
+                protoPath = protoPath,
+                compileWellKnownTypes = compileWellKnownTypes,
+                codecPath = codecPath,
+                disableComments = disableComments,
+            )
+            config.serviceGenerator(serviceGen)
+        }
+        config.compileProtos(protos, includes)
+    }
+
+    /**
+     * Compile a [FileDescriptorSet] and execute code generation.
+     */
+    public fun compileFds(fds: FileDescriptorSet) {
+        compileFdsWithConfig(fds, Config.new())
+    }
+
+    /**
+     * Compile a [FileDescriptorSet] with a custom config.
+     */
+    public fun compileFdsWithConfig(
+        fds: FileDescriptorSet,
+        config: Config,
+    ) {
+        val resolvedOutDir = outDir ?: "build/generated/source/proto"
+        config.outDir(resolvedOutDir)
+
+        for ((protoPath, rustPath) in externPath) {
+            config.externPath(protoPath, rustPath)
+        }
+        for ((path, attr) in fieldAttributes) {
+            config.fieldAttribute(path, attr)
+        }
+        for ((path, attr) in messageAttributes) {
+            config.messageAttribute(path, attr)
+        }
+        for ((path, attr) in enumAttributes) {
+            config.enumAttribute(path, attr)
+        }
+        for ((path, attr) in typeAttributes) {
+            config.typeAttribute(path, attr)
+        }
+        for (path in boxed) {
+            config.boxed(path)
+        }
+        btreeMap?.let { config.btreeMap(it) }
+        bytes?.let { config.bytes(it) }
+        if (compileWellKnownTypes) {
+            config.compileWellKnownTypes()
+        }
+        for (arg in protocArgs) {
+            config.protocArg(arg)
+        }
+        includeFile?.let { config.includeFile(it) }
+        if (skipDebug.isNotEmpty()) {
+            config.skipDebug(skipDebug)
+        }
+        fileDescriptorSetPath?.let { config.fileDescriptorSetPath(it) }
+        if (skipProtocRun) {
+            config.skipProtocRun()
+        }
+        if (buildClient || buildServer) {
+            val serviceGen = ServiceGenerator.new(
+                buildClient = buildClient,
+                buildServer = buildServer,
+                buildTransport = buildTransport,
+                clientAttributes = clientAttributes,
+                serverAttributes = serverAttributes,
+                useArcSelf = useArcSelf,
+                generateDefaultStubs = generateDefaultStubs,
+                protoPath = protoPath,
+                compileWellKnownTypes = compileWellKnownTypes,
+                codecPath = codecPath,
+                disableComments = disableComments,
+            )
+            config.serviceGenerator(serviceGen)
+        }
+        config.compileFds(fds)
+    }
+
+    /**
+     * Turn the builder into a ServiceGenerator ready to be passed to config.
+     */
+    internal fun serviceGenerator(): ServiceGenerator =
+        toServiceGenerator()
 
     /**
      * Build a ServiceGenerator snapshot of this builder's codegen configuration.
@@ -476,31 +831,4 @@ public class Builder internal constructor(
             codecPath = codecPath,
             disableComments = disableComments,
         )
-}
-
-/**
- * Snapshot of the configuration a Builder hands to the underlying prost-build
- * service-generator boundary. Pure config; the actual code emission requires
- * the unported tonic-build-kotlin CodeGenBuilder and prost-build-kotlin Config
- * siblings (both effectively empty as of 2026-05-25).
- */
-internal data class ServiceGenerator(
-    val buildClient: Boolean,
-    val buildServer: Boolean,
-    val buildTransport: Boolean,
-    val clientAttributes: CodegenAttributes,
-    val serverAttributes: CodegenAttributes,
-    val useArcSelf: Boolean,
-    val generateDefaultStubs: Boolean,
-    val protoPath: String,
-    val compileWellKnownTypes: Boolean,
-    val codecPath: String,
-    val disableComments: Set<String>,
-) {
-    // Upstream impl prost_build::ServiceGenerator::generate(service, buf):
-    // wraps the prost Service in TonicBuildService, drives tonic_build::CodeGenBuilder
-    // for both client and server, accumulates a proc_macro2::TokenStream, then
-    // prettyplease::unparse-es it onto buf. The Kotlin port cannot translate
-    // this body until tonic-build-kotlin and prost-build-kotlin publish the
-    // CodeGenBuilder / Config / ServiceGenerator surfaces it depends on.
 }

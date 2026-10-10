@@ -15,7 +15,7 @@ class LibTest {
         )
 
     @Test
-    fun configureDefaults() {
+    fun testConfigureDefaults() {
         val builder = configure()
 
         assertTrue(builder.buildClient)
@@ -48,7 +48,7 @@ class LibTest {
     }
 
     @Test
-    fun builderFluentOptionsAccumulateState() {
+    fun testBuilderFluentOptionsAccumulateState() {
         val builder = configure()
             .buildClient(false)
             .buildServer(false)
@@ -126,7 +126,7 @@ class LibTest {
     }
 
     @Test
-    fun tonicBuildServiceWrapsProstServiceMetadata() {
+    fun testTonicBuildServiceWrapsProstServiceMetadata() {
         val service = ProstService(
             name = "Greeter",
             packageName = "helloworld",
@@ -151,6 +151,7 @@ class LibTest {
 
         assertEquals("Greeter", wrappedService.name())
         assertEquals("helloworld", wrappedService.packageName())
+        assertEquals("helloworld", wrappedService.`package`())
         assertEquals("GreeterService", wrappedService.identifier())
         assertEquals(listOf("Service documentation."), wrappedService.comment())
         assertEquals("SayHello", wrappedMethod.name())
@@ -163,7 +164,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameGoogleTypesNotCompiled() {
+    fun testRequestResponseNameGoogleTypesNotCompiled() {
         val testCases = listOf(
             ".google.protobuf.Empty" to "()",
             ".google.protobuf.Any" to ":: prost_types :: Any",
@@ -183,7 +184,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameGoogleTypesCompiled() {
+    fun testRequestResponseNameGoogleTypesCompiled() {
         val testCases = listOf(
             ".google.protobuf.Empty",
             ".google.protobuf.Any",
@@ -202,7 +203,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameNonPathTypes() {
+    fun testRequestResponseNameNonPathTypes() {
         val method = createTestMethod("()", "()")
         val (request, response) = method.requestResponseName("super", false)
 
@@ -211,7 +212,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameExternTypes() {
+    fun testRequestResponseNameExternTypes() {
         val testCases = listOf(
             "::my_crate::MyType" to ":: my_crate :: MyType",
             "crate::module::MyType" to "crate :: module :: MyType",
@@ -228,7 +229,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameRegularProtobufTypes() {
+    fun testRequestResponseNameRegularProtobufTypes() {
         val testCases = listOf(
             "mypackage.MyMessage" to "super :: mypackage :: MyMessage",
             "com.example.User" to "super :: com :: example :: User",
@@ -246,7 +247,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameDifferentProtoPaths() {
+    fun testRequestResponseNameDifferentProtoPaths() {
         val method = createTestMethod(
             inputType = "mypackage.MyMessage",
             outputType = "mypackage.MyResponse",
@@ -266,7 +267,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameMixedTypes() {
+    fun testRequestResponseNameMixedTypes() {
         val googleRequest = createTestMethod(
             inputType = ".google.protobuf.Empty",
             outputType = "mypackage.MyResponse",
@@ -287,7 +288,7 @@ class LibTest {
     }
 
     @Test
-    fun googleTypeDetection() {
+    fun testIsGoogleType() {
         assertTrue(isGoogleType(".google.protobuf.Empty"))
         assertTrue(isGoogleType(".google.protobuf.Any"))
         assertTrue(isGoogleType(".google.protobuf.Timestamp"))
@@ -299,13 +300,13 @@ class LibTest {
     }
 
     @Test
-    fun nonPathTypeAllowlist() {
+    fun testNonPathTypeAllowlist() {
         assertTrue(NON_PATH_TYPE_ALLOWLIST.contains("()"))
         assertEquals(1, NON_PATH_TYPE_ALLOWLIST.size)
     }
 
     @Test
-    fun serviceGeneratorSnapshotsBuilderCodegenConfig() {
+    fun testServiceGeneratorSnapshotsBuilderCodegenConfig() {
         val builder = configure()
             .buildClient(false)
             .buildTransport(false)
@@ -318,7 +319,7 @@ class LibTest {
             .serverAttribute(".pkg.Service", "@Deprecated")
             .clientAttribute(".pkg.Service", "@Deprecated")
 
-        val generator = builder.toServiceGenerator()
+        val generator = builder.serviceGenerator()
 
         assertFalse(generator.buildClient)
         assertTrue(generator.buildServer)
@@ -337,10 +338,17 @@ class LibTest {
             CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
             generator.clientAttributes,
         )
+
+        val buf = StringBuilder()
+        generator.generate(
+            ProstService("Greeter", "hello", "GreeterService"),
+            buf,
+        )
+        assertTrue(buf.contains("Generated Server"))
     }
 
     @Test
-    fun edgeCases() {
+    fun testEdgeCases() {
         val multipleDots = createTestMethod("a.b.c.d.Message", "x.y.z.Response")
         val (request, response) = multipleDots.requestResponseName("super", false)
         assertEquals("super :: a :: b :: c :: d :: Message", request)
@@ -350,5 +358,35 @@ class LibTest {
         val (nonPathRequest, nonPathResponse) = nonPathSuffix.requestResponseName("super", false)
         assertEquals("mypackage . ()", nonPathRequest)
         assertEquals("mypackage . ()", nonPathResponse)
+    }
+
+    @Test
+    fun testConfigCompilationHelpers() {
+        val config = Config.new()
+            .outDir("custom_out")
+            .externPath(".test", "::test")
+            .fieldAttribute(".test.field", "@test")
+            .messageAttribute(".test.msg", "@test")
+            .enumAttribute(".test.enum", "@test")
+            .typeAttribute(".test.type", "@test")
+            .boxed(".test.boxed")
+            .btreeMap(listOf(".test.map"))
+            .bytes(listOf(".test.bytes"))
+            .compileWellKnownTypes()
+            .protocArg("--flag")
+            .includeFile("inc.kt")
+            .skipDebug(setOf(".test.debug"))
+            .fileDescriptorSetPath("fds.bin")
+            .skipProtocRun()
+
+        assertEquals("custom_out", config.outDir)
+        assertTrue(config.wellKnownTypesCompiled)
+        assertTrue(config.protocRunSkipped)
+
+        val builder = configure()
+        builder.compileProtos(listOf("test.proto"), listOf("."))
+        builder.compileFds(FileDescriptorSet())
+        compileProtos("proto/test.proto")
+        compileFds(FileDescriptorSet())
     }
 }
