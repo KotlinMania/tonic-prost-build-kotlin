@@ -15,7 +15,7 @@ class LibTest {
         )
 
     @Test
-    fun configureDefaults() {
+    fun testConfigureDefaults() {
         val builder = configure()
 
         assertTrue(builder.buildClient)
@@ -48,40 +48,41 @@ class LibTest {
     }
 
     @Test
-    fun builderFluentOptionsAccumulateState() {
-        val builder = configure()
-            .buildClient(false)
-            .buildServer(false)
-            .buildTransport(false)
-            .outDir("generated")
-            .externPath(".google.protobuf", "::prost_types")
-            .fieldAttribute(".pkg.Message.field", "@field:Deprecated")
-            .messageAttribute(".pkg.Message", "@Deprecated")
-            .enumAttribute(".pkg.Enum", "@Deprecated")
-            .typeAttribute(".pkg.Type", "@Serializable")
-            .boxed(".pkg.Message.child")
-            .btreeMap(".pkg.Message.tags")
-            .btreeMap(".pkg.Message.more_tags")
-            .bytes(".pkg.Message.payload")
-            .bytes(".pkg.Message.more_payload")
-            .serverModAttribute(".pkg.Service", "@ServerModule")
-            .serverAttribute(".pkg.Service", "@Deprecated")
-            .traitAttribute(".pkg.Service", "@Serializable")
-            .clientModAttribute(".pkg.Service", "@ClientModule")
-            .clientAttribute(".pkg.Service", "@Deprecated")
-            .protoPath("crate::proto")
-            .compileWellKnownTypes(true)
-            .emitPackage(false)
-            .fileDescriptorSetPath("descriptor.bin")
-            .skipProtocRun()
-            .protocArg("--experimental_allow_proto3_optional")
-            .includeFile("include.kt")
-            .emitRerunIfChanged(true)
-            .disableComments(listOf(".pkg.Service", ".pkg.Service/Method"))
-            .useArcSelf(true)
-            .generateDefaultStubs(true)
-            .codecPath("my.Codec")
-            .skipDebug(listOf(".pkg.Request", ".pkg.Response"))
+    fun testBuilderFluentOptionsAccumulateState() {
+        val builder =
+            configure()
+                .buildClient(false)
+                .buildServer(false)
+                .buildTransport(false)
+                .outDir("generated")
+                .externPath(".google.protobuf", "::prost_types")
+                .fieldAttribute(".pkg.Message.field", "@field:Deprecated")
+                .messageAttribute(".pkg.Message", "@Deprecated")
+                .enumAttribute(".pkg.Enum", "@Deprecated")
+                .typeAttribute(".pkg.Type", "@Serializable")
+                .boxed(".pkg.Message.child")
+                .btreeMap(".pkg.Message.tags")
+                .btreeMap(".pkg.Message.more_tags")
+                .bytes(".pkg.Message.payload")
+                .bytes(".pkg.Message.more_payload")
+                .serverModAttribute(".pkg.Service", "@ServerModule")
+                .serverAttribute(".pkg.Service", "@Deprecated")
+                .traitAttribute(".pkg.Service", "@Serializable")
+                .clientModAttribute(".pkg.Service", "@ClientModule")
+                .clientAttribute(".pkg.Service", "@Deprecated")
+                .protoPath("crate::proto")
+                .compileWellKnownTypes(true)
+                .emitPackage(false)
+                .fileDescriptorSetPath("descriptor.bin")
+                .skipProtocRun()
+                .protocArg("--experimental_allow_proto3_optional")
+                .includeFile("include.kt")
+                .emitRerunIfChanged(true)
+                .disableComments(listOf(".pkg.Service", ".pkg.Service/Method"))
+                .useArcSelf(true)
+                .generateDefaultStubs(true)
+                .codecPath("my.Codec")
+                .skipDebug(listOf(".pkg.Request", ".pkg.Response"))
 
         assertFalse(builder.buildClient)
         assertFalse(builder.buildServer)
@@ -126,31 +127,34 @@ class LibTest {
     }
 
     @Test
-    fun tonicBuildServiceWrapsProstServiceMetadata() {
-        val service = ProstService(
-            name = "Greeter",
-            packageName = "helloworld",
-            protoName = "GreeterService",
-            comments = ProstComments(leading = listOf("Service documentation.")),
-            methods = listOf(
-                ProstMethod(
-                    name = "SayHello",
-                    protoName = "sayHello",
-                    comments = ProstComments(leading = listOf("Method documentation.")),
-                    inputType = ".helloworld.HelloRequest",
-                    outputType = ".helloworld.HelloReply",
-                    clientStreaming = true,
-                    serverStreaming = false,
-                    deprecated = true,
-                ),
-            ),
-        )
+    fun testTonicBuildServiceWrapsProstServiceMetadata() {
+        val service =
+            ProstService(
+                name = "Greeter",
+                packageName = "helloworld",
+                protoName = "GreeterService",
+                comments = ProstComments(leading = listOf("Service documentation.")),
+                methods =
+                    listOf(
+                        ProstMethod(
+                            name = "SayHello",
+                            protoName = "sayHello",
+                            comments = ProstComments(leading = listOf("Method documentation.")),
+                            inputType = ".helloworld.HelloRequest",
+                            outputType = ".helloworld.HelloReply",
+                            clientStreaming = true,
+                            serverStreaming = false,
+                            deprecated = true,
+                        ),
+                    ),
+            )
 
         val wrappedService = TonicBuildService(service, "custom.Codec")
         val wrappedMethod = wrappedService.methods().single()
 
         assertEquals("Greeter", wrappedService.name())
         assertEquals("helloworld", wrappedService.packageName())
+        assertEquals("helloworld", wrappedService.`package`())
         assertEquals("GreeterService", wrappedService.identifier())
         assertEquals(listOf("Service documentation."), wrappedService.comment())
         assertEquals("SayHello", wrappedMethod.name())
@@ -163,15 +167,16 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameGoogleTypesNotCompiled() {
-        val testCases = listOf(
-            ".google.protobuf.Empty" to "()",
-            ".google.protobuf.Any" to ":: prost_types :: Any",
-            ".google.protobuf.StringValue" to ":: prost :: alloc :: string :: String",
-            ".google.protobuf.Timestamp" to ":: prost_types :: Timestamp",
-            ".google.protobuf.Duration" to ":: prost_types :: Duration",
-            ".google.protobuf.Value" to ":: prost_types :: Value",
-        )
+    fun testRequestResponseNameGoogleTypesNotCompiled() {
+        val testCases =
+            listOf(
+                ".google.protobuf.Empty" to "()",
+                ".google.protobuf.Any" to ":: prost_types :: Any",
+                ".google.protobuf.StringValue" to ":: prost :: alloc :: string :: String",
+                ".google.protobuf.Timestamp" to ":: prost_types :: Timestamp",
+                ".google.protobuf.Duration" to ":: prost_types :: Duration",
+                ".google.protobuf.Value" to ":: prost_types :: Value",
+            )
 
         for ((typeName, expected) in testCases) {
             val method = createTestMethod(typeName, typeName)
@@ -183,13 +188,14 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameGoogleTypesCompiled() {
-        val testCases = listOf(
-            ".google.protobuf.Empty",
-            ".google.protobuf.Any",
-            ".google.protobuf.StringValue",
-            ".google.protobuf.Timestamp",
-        )
+    fun testRequestResponseNameGoogleTypesCompiled() {
+        val testCases =
+            listOf(
+                ".google.protobuf.Empty",
+                ".google.protobuf.Any",
+                ".google.protobuf.StringValue",
+                ".google.protobuf.Timestamp",
+            )
 
         for (typeName in testCases) {
             val method = createTestMethod(typeName, typeName)
@@ -202,7 +208,7 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameNonPathTypes() {
+    fun testRequestResponseNameNonPathTypes() {
         val method = createTestMethod("()", "()")
         val (request, response) = method.requestResponseName("super", false)
 
@@ -211,12 +217,13 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameExternTypes() {
-        val testCases = listOf(
-            "::my_crate::MyType" to ":: my_crate :: MyType",
-            "crate::module::MyType" to "crate :: module :: MyType",
-            "::external::lib::Type" to ":: external :: lib :: Type",
-        )
+    fun testRequestResponseNameExternTypes() {
+        val testCases =
+            listOf(
+                "::my_crate::MyType" to ":: my_crate :: MyType",
+                "crate::module::MyType" to "crate :: module :: MyType",
+                "::external::lib::Type" to ":: external :: lib :: Type",
+            )
 
         for ((typeName, expected) in testCases) {
             val method = createTestMethod(typeName, typeName)
@@ -228,13 +235,14 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameRegularProtobufTypes() {
-        val testCases = listOf(
-            "mypackage.MyMessage" to "super :: mypackage :: MyMessage",
-            "com.example.User" to "super :: com :: example :: User",
-            ".mypackage.MyMessage" to "super :: mypackage :: MyMessage",
-            "nested.package.Message" to "super :: nested :: package :: Message",
-        )
+    fun testRequestResponseNameRegularProtobufTypes() {
+        val testCases =
+            listOf(
+                "mypackage.MyMessage" to "super :: mypackage :: MyMessage",
+                "com.example.User" to "super :: com :: example :: User",
+                ".mypackage.MyMessage" to "super :: mypackage :: MyMessage",
+                "nested.package.Message" to "super :: nested :: package :: Message",
+            )
 
         for ((input, expected) in testCases) {
             val method = createTestMethod(input, input)
@@ -246,11 +254,12 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameDifferentProtoPaths() {
-        val method = createTestMethod(
-            inputType = "mypackage.MyMessage",
-            outputType = "mypackage.MyResponse",
-        )
+    fun testRequestResponseNameDifferentProtoPaths() {
+        val method =
+            createTestMethod(
+                inputType = "mypackage.MyMessage",
+                outputType = "mypackage.MyResponse",
+            )
 
         val testPaths = listOf("super", "crate::proto", "crate")
 
@@ -266,20 +275,22 @@ class LibTest {
     }
 
     @Test
-    fun requestResponseNameMixedTypes() {
-        val googleRequest = createTestMethod(
-            inputType = ".google.protobuf.Empty",
-            outputType = "mypackage.MyResponse",
-        )
+    fun testRequestResponseNameMixedTypes() {
+        val googleRequest =
+            createTestMethod(
+                inputType = ".google.protobuf.Empty",
+                outputType = "mypackage.MyResponse",
+            )
         val (googleRequestName, googleResponseName) = googleRequest.requestResponseName("super", false)
 
         assertEquals("()", googleRequestName)
         assertEquals("super :: mypackage :: MyResponse", googleResponseName)
 
-        val externRequest = createTestMethod(
-            inputType = "::external::Request",
-            outputType = ".google.protobuf.Any",
-        )
+        val externRequest =
+            createTestMethod(
+                inputType = "::external::Request",
+                outputType = ".google.protobuf.Any",
+            )
         val (externRequestName, externResponseName) = externRequest.requestResponseName("super", false)
 
         assertEquals(":: external :: Request", externRequestName)
@@ -287,7 +298,7 @@ class LibTest {
     }
 
     @Test
-    fun googleTypeDetection() {
+    fun testIsGoogleType() {
         assertTrue(isGoogleType(".google.protobuf.Empty"))
         assertTrue(isGoogleType(".google.protobuf.Any"))
         assertTrue(isGoogleType(".google.protobuf.Timestamp"))
@@ -299,26 +310,27 @@ class LibTest {
     }
 
     @Test
-    fun nonPathTypeAllowlist() {
+    fun testNonPathTypeAllowlist() {
         assertTrue(NON_PATH_TYPE_ALLOWLIST.contains("()"))
         assertEquals(1, NON_PATH_TYPE_ALLOWLIST.size)
     }
 
     @Test
-    fun serviceGeneratorSnapshotsBuilderCodegenConfig() {
-        val builder = configure()
-            .buildClient(false)
-            .buildTransport(false)
-            .protoPath("crate::proto")
-            .compileWellKnownTypes(true)
-            .useArcSelf(true)
-            .generateDefaultStubs(true)
-            .codecPath("my.Codec")
-            .disableComments(listOf(".pkg.Service"))
-            .serverAttribute(".pkg.Service", "@Deprecated")
-            .clientAttribute(".pkg.Service", "@Deprecated")
+    fun testServiceGeneratorSnapshotsBuilderCodegenConfig() {
+        val builder =
+            configure()
+                .buildClient(false)
+                .buildTransport(false)
+                .protoPath("crate::proto")
+                .compileWellKnownTypes(true)
+                .useArcSelf(true)
+                .generateDefaultStubs(true)
+                .codecPath("my.Codec")
+                .disableComments(listOf(".pkg.Service"))
+                .serverAttribute(".pkg.Service", "@Deprecated")
+                .clientAttribute(".pkg.Service", "@Deprecated")
 
-        val generator = builder.toServiceGenerator()
+        val generator = builder.serviceGenerator()
 
         assertFalse(generator.buildClient)
         assertTrue(generator.buildServer)
@@ -337,10 +349,17 @@ class LibTest {
             CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
             generator.clientAttributes,
         )
+
+        val buf = StringBuilder()
+        generator.generate(
+            ProstService("Greeter", "hello", "GreeterService"),
+            buf,
+        )
+        assertTrue(buf.contains("Generated Server"))
     }
 
     @Test
-    fun edgeCases() {
+    fun testEdgeCases() {
         val multipleDots = createTestMethod("a.b.c.d.Message", "x.y.z.Response")
         val (request, response) = multipleDots.requestResponseName("super", false)
         assertEquals("super :: a :: b :: c :: d :: Message", request)
@@ -350,5 +369,37 @@ class LibTest {
         val (nonPathRequest, nonPathResponse) = nonPathSuffix.requestResponseName("super", false)
         assertEquals("mypackage . ()", nonPathRequest)
         assertEquals("mypackage . ()", nonPathResponse)
+    }
+
+    @Test
+    fun testConfigCompilationHelpers() {
+        val config =
+            Config
+                .new()
+                .outDir("custom_out")
+                .externPath(".test", "::test")
+                .fieldAttribute(".test.field", "@test")
+                .messageAttribute(".test.msg", "@test")
+                .enumAttribute(".test.enum", "@test")
+                .typeAttribute(".test.type", "@test")
+                .boxed(".test.boxed")
+                .btreeMap(listOf(".test.map"))
+                .bytes(listOf(".test.bytes"))
+                .compileWellKnownTypes()
+                .protocArg("--flag")
+                .includeFile("inc.kt")
+                .skipDebug(setOf(".test.debug"))
+                .fileDescriptorSetPath("fds.bin")
+                .skipProtocRun()
+
+        assertEquals("custom_out", config.outDir)
+        assertTrue(config.wellKnownTypesCompiled)
+        assertTrue(config.protocRunSkipped)
+
+        val builder = configure()
+        builder.compileProtos(listOf("test.proto"), listOf("."))
+        builder.compileFds(FileDescriptorSet())
+        compileProtos("proto/test.proto")
+        compileFds(FileDescriptorSet())
     }
 }
