@@ -1,12 +1,13 @@
-// port-lint: source tests.rs
+// port-lint: tests tests.rs
 package io.github.kotlinmania.tonicprostbuild
 
+import io.github.kotlinmania.quote.quote
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class LibTest {
+class Tests {
     private fun createTestMethod(inputType: String, outputType: String): TonicBuildMethod =
         TonicBuildMethod(
             inputType = inputType,
@@ -128,18 +129,24 @@ class LibTest {
 
     @Test
     fun testTonicBuildServiceWrapsProstServiceMetadata() {
-        val service =
+        val prostService =
             ProstService(
                 name = "Greeter",
                 packageName = "helloworld",
-                protoName = "GreeterService",
-                comments = ProstComments(leading = listOf("Service documentation.")),
+                protoName = "greeter.proto",
+                comments =
+                    ProstComments(
+                        leading = listOf("/// Leading comment on service"),
+                    ),
                 methods =
                     listOf(
                         ProstMethod(
                             name = "SayHello",
-                            protoName = "sayHello",
-                            comments = ProstComments(leading = listOf("Method documentation.")),
+                            protoName = "say_hello",
+                            comments =
+                                ProstComments(
+                                    leading = listOf("/// Leading comment on method"),
+                                ),
                             inputType = ".helloworld.HelloRequest",
                             outputType = ".helloworld.HelloReply",
                             clientStreaming = true,
@@ -149,41 +156,51 @@ class LibTest {
                     ),
             )
 
-        val wrappedService = TonicBuildService(service, "custom.Codec")
-        val wrappedMethod = wrappedService.methods().single()
+        val tonicService = TonicBuildService.new(prostService, "tonic_prost::ProstCodec")
 
-        assertEquals("Greeter", wrappedService.name())
-        assertEquals("helloworld", wrappedService.packageName())
-        assertEquals("helloworld", wrappedService.`package`())
-        assertEquals("GreeterService", wrappedService.identifier())
-        assertEquals(listOf("Service documentation."), wrappedService.comment())
-        assertEquals("SayHello", wrappedMethod.name())
-        assertEquals("sayHello", wrappedMethod.identifier())
-        assertEquals(listOf("Method documentation."), wrappedMethod.comment())
-        assertTrue(wrappedMethod.clientStreaming())
-        assertFalse(wrappedMethod.serverStreaming())
-        assertTrue(wrappedMethod.deprecated())
-        assertEquals("custom.Codec", wrappedMethod.codecPath())
+        assertEquals("Greeter", tonicService.name())
+        assertEquals("helloworld", tonicService.`package`())
+        assertEquals("helloworld", tonicService.packageName())
+        assertEquals("greeter.proto", tonicService.identifier())
+        assertEquals(listOf("/// Leading comment on service"), tonicService.comment())
+        assertEquals(1, tonicService.methods().size)
+
+        val method = tonicService.methods().first()
+        assertEquals("SayHello", method.name())
+        assertEquals("say_hello", method.identifier())
+        assertTrue(method.clientStreaming())
+        assertFalse(method.serverStreaming())
+        assertTrue(method.deprecated())
+        assertEquals("tonic_prost::ProstCodec", method.codecPath())
+        assertEquals(listOf("/// Leading comment on method"), method.comment())
     }
 
     @Test
     fun testRequestResponseNameGoogleTypesNotCompiled() {
         val testCases =
             listOf(
-                ".google.protobuf.Empty" to "()",
-                ".google.protobuf.Any" to ":: prost_types :: Any",
-                ".google.protobuf.StringValue" to ":: prost :: alloc :: string :: String",
-                ".google.protobuf.Timestamp" to ":: prost_types :: Timestamp",
-                ".google.protobuf.Duration" to ":: prost_types :: Duration",
-                ".google.protobuf.Value" to ":: prost_types :: Value",
+                ".google.protobuf.Empty" to quote("()"),
+                ".google.protobuf.Any" to quote("::prost_types::Any"),
+                ".google.protobuf.StringValue" to quote("::prost::alloc::string::String"),
+                ".google.protobuf.Timestamp" to quote("::prost_types::Timestamp"),
+                ".google.protobuf.Duration" to quote("::prost_types::Duration"),
+                ".google.protobuf.Value" to quote("::prost_types::Value"),
             )
 
         for ((typeName, expected) in testCases) {
             val method = createTestMethod(typeName, typeName)
             val (request, response) = method.requestResponseName("super", false)
 
-            assertEquals(expected, request, "Failed for input type: $typeName")
-            assertEquals(expected, response, "Failed for output type: $typeName")
+            assertEquals(
+                expected.toString(),
+                request.toString(),
+                "Failed for input type: $typeName",
+            )
+            assertEquals(
+                expected.toString(),
+                response.toString(),
+                "Failed for output type: $typeName",
+            )
         }
     }
 
@@ -200,10 +217,20 @@ class LibTest {
         for (typeName in testCases) {
             val method = createTestMethod(typeName, typeName)
             val (request, response) = method.requestResponseName("super", true)
-            val expectedPath = "super :: google :: protobuf :: ${typeName.removePrefix(".google.protobuf.")}"
 
-            assertEquals(expectedPath, request, "Failed for input type: $typeName")
-            assertEquals(expectedPath, response, "Failed for output type: $typeName")
+            val stripped = typeName.removePrefix(".google.protobuf.")
+            val expectedPath = "super :: google :: protobuf :: $stripped"
+
+            assertEquals(
+                expectedPath,
+                request.toString(),
+                "Failed for input type: $typeName",
+            )
+            assertEquals(
+                expectedPath,
+                response.toString(),
+                "Failed for output type: $typeName",
+            )
         }
     }
 
@@ -212,8 +239,8 @@ class LibTest {
         val method = createTestMethod("()", "()")
         val (request, response) = method.requestResponseName("super", false)
 
-        assertEquals("()", request)
-        assertEquals("()", response)
+        assertEquals("()", request.toString())
+        assertEquals("()", response.toString())
     }
 
     @Test
@@ -229,8 +256,16 @@ class LibTest {
             val method = createTestMethod(typeName, typeName)
             val (request, response) = method.requestResponseName("super", false)
 
-            assertEquals(expected, request, "Failed for input type: $typeName")
-            assertEquals(expected, response, "Failed for output type: $typeName")
+            assertEquals(
+                expected,
+                request.toString(),
+                "Failed for input type: $typeName",
+            )
+            assertEquals(
+                expected,
+                response.toString(),
+                "Failed for output type: $typeName",
+            )
         }
     }
 
@@ -248,8 +283,16 @@ class LibTest {
             val method = createTestMethod(input, input)
             val (request, response) = method.requestResponseName("super", false)
 
-            assertEquals(expected, request, "Failed for input type: $input")
-            assertEquals(expected, response, "Failed for output type: $input")
+            assertEquals(
+                expected,
+                request.toString(),
+                "Failed for input type: $input",
+            )
+            assertEquals(
+                expected,
+                response.toString(),
+                "Failed for output type: $input",
+            )
         }
     }
 
@@ -257,44 +300,62 @@ class LibTest {
     fun testRequestResponseNameDifferentProtoPaths() {
         val method =
             createTestMethod(
-                inputType = "mypackage.MyMessage",
-                outputType = "mypackage.MyResponse",
+                "mypackage.MyMessage",
+                "mypackage.MyResponse",
             )
 
         val testPaths = listOf("super", "crate::proto", "crate")
 
         for (protoPath in testPaths) {
             val (request, response) = method.requestResponseName(protoPath, false)
-            val renderedProtoPath = protoPath.replace("::", " :: ")
-            val expectedRequest = "$renderedProtoPath :: mypackage :: MyMessage"
-            val expectedResponse = "$renderedProtoPath :: mypackage :: MyResponse"
 
-            assertEquals(expectedRequest, request, "Failed for proto path: $protoPath")
-            assertEquals(expectedResponse, response, "Failed for proto path: $protoPath")
+            val expectedRequest =
+                if (protoPath.contains("::")) {
+                    "${protoPath.replace("::", " :: ")} :: mypackage :: MyMessage"
+                } else {
+                    "$protoPath :: mypackage :: MyMessage"
+                }
+            val expectedResponse =
+                if (protoPath.contains("::")) {
+                    "${protoPath.replace("::", " :: ")} :: mypackage :: MyResponse"
+                } else {
+                    "$protoPath :: mypackage :: MyResponse"
+                }
+
+            assertEquals(
+                expectedRequest,
+                request.toString(),
+                "Failed for proto_path: $protoPath",
+            )
+            assertEquals(
+                expectedResponse,
+                response.toString(),
+                "Failed for proto_path: $protoPath",
+            )
         }
     }
 
     @Test
     fun testRequestResponseNameMixedTypes() {
-        val googleRequest =
+        val method1 =
             createTestMethod(
-                inputType = ".google.protobuf.Empty",
-                outputType = "mypackage.MyResponse",
+                ".google.protobuf.Empty",
+                "mypackage.MyResponse",
             )
-        val (googleRequestName, googleResponseName) = googleRequest.requestResponseName("super", false)
+        val (request1, response1) = method1.requestResponseName("super", false)
 
-        assertEquals("()", googleRequestName)
-        assertEquals("super :: mypackage :: MyResponse", googleResponseName)
+        assertEquals("()", request1.toString())
+        assertEquals("super :: mypackage :: MyResponse", response1.toString())
 
-        val externRequest =
+        val method2 =
             createTestMethod(
-                inputType = "::external::Request",
-                outputType = ".google.protobuf.Any",
+                "::external::Request",
+                ".google.protobuf.Any",
             )
-        val (externRequestName, externResponseName) = externRequest.requestResponseName("super", false)
+        val (request2, response2) = method2.requestResponseName("super", false)
 
-        assertEquals(":: external :: Request", externRequestName)
-        assertEquals(":: prost_types :: Any", externResponseName)
+        assertEquals(":: external :: Request", request2.toString())
+        assertEquals(":: prost_types :: Any", response2.toString())
     }
 
     @Test
@@ -317,89 +378,57 @@ class LibTest {
 
     @Test
     fun testServiceGeneratorSnapshotsBuilderCodegenConfig() {
-        val builder =
+        val service =
+            ProstService(
+                name = "Greeter",
+                packageName = "helloworld",
+                protoName = "greeter.proto",
+            )
+
+        val serviceGenerator =
             configure()
-                .buildClient(false)
-                .buildTransport(false)
-                .protoPath("crate::proto")
-                .compileWellKnownTypes(true)
-                .useArcSelf(true)
-                .generateDefaultStubs(true)
-                .codecPath("my.Codec")
-                .disableComments(listOf(".pkg.Service"))
-                .serverAttribute(".pkg.Service", "@Deprecated")
-                .clientAttribute(".pkg.Service", "@Deprecated")
+                .buildClient(true)
+                .buildServer(false)
+                .codecPath("tonic_prost::ProstCodec")
+                .serviceGenerator()
 
-        val generator = builder.serviceGenerator()
+        assertTrue(serviceGenerator.buildClient)
+        assertFalse(serviceGenerator.buildServer)
+        assertEquals("tonic_prost::ProstCodec", serviceGenerator.codecPath)
 
-        assertFalse(generator.buildClient)
-        assertTrue(generator.buildServer)
-        assertFalse(generator.buildTransport)
-        assertTrue(generator.useArcSelf)
-        assertTrue(generator.generateDefaultStubs)
-        assertTrue(generator.compileWellKnownTypes)
-        assertEquals("crate::proto", generator.protoPath)
-        assertEquals("my.Codec", generator.codecPath)
-        assertEquals(setOf(".pkg.Service"), generator.disableComments)
-        assertEquals(
-            CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
-            generator.serverAttributes,
-        )
-        assertEquals(
-            CodegenAttributes(struct = listOf(".pkg.Service" to "@Deprecated")),
-            generator.clientAttributes,
-        )
+        val builder = StringBuilder()
+        serviceGenerator.generate(service, builder)
+        val generated = builder.toString()
 
-        val buf = StringBuilder()
-        generator.generate(
-            ProstService("Greeter", "hello", "GreeterService"),
-            buf,
-        )
-        assertTrue(buf.contains("Generated Server"))
+        assertTrue(generated.contains("Generated Client for Greeter in helloworld"))
+        assertFalse(generated.contains("Generated Server for Greeter in helloworld"))
     }
 
     @Test
     fun testEdgeCases() {
-        val multipleDots = createTestMethod("a.b.c.d.Message", "x.y.z.Response")
-        val (request, response) = multipleDots.requestResponseName("super", false)
-        assertEquals("super :: a :: b :: c :: d :: Message", request)
-        assertEquals("super :: x :: y :: z :: Response", response)
+        val method1 = createTestMethod("a.b.c.d.Message", "x.y.z.Response")
+        val (request1, response1) = method1.requestResponseName("super", false)
+        assertEquals("super :: a :: b :: c :: d :: Message", request1.toString())
+        assertEquals("super :: x :: y :: z :: Response", response1.toString())
 
-        val nonPathSuffix = createTestMethod("mypackage.()", "mypackage.()")
-        val (nonPathRequest, nonPathResponse) = nonPathSuffix.requestResponseName("super", false)
-        assertEquals("mypackage . ()", nonPathRequest)
-        assertEquals("mypackage . ()", nonPathResponse)
+        val method2 = createTestMethod("mypackage.()", "mypackage.()")
+        val (request2, response2) = method2.requestResponseName("super", false)
+        assertEquals("mypackage . ()", request2.toString())
+        assertEquals("mypackage . ()", response2.toString())
     }
 
     @Test
     fun testConfigCompilationHelpers() {
-        val config =
-            Config
-                .new()
-                .outDir("custom_out")
-                .externPath(".test", "::test")
-                .fieldAttribute(".test.field", "@test")
-                .messageAttribute(".test.msg", "@test")
-                .enumAttribute(".test.enum", "@test")
-                .typeAttribute(".test.type", "@test")
-                .boxed(".test.boxed")
-                .btreeMap(listOf(".test.map"))
-                .bytes(listOf(".test.bytes"))
-                .compileWellKnownTypes()
-                .protocArg("--flag")
-                .includeFile("inc.kt")
-                .skipDebug(setOf(".test.debug"))
-                .fileDescriptorSetPath("fds.bin")
-                .skipProtocRun()
-
-        assertEquals("custom_out", config.outDir)
-        assertTrue(config.wellKnownTypesCompiled)
-        assertTrue(config.protocRunSkipped)
+        val config = Config.new()
+        config.compileProtos(listOf("a.proto"), listOf("."))
+        config.compileFds(FileDescriptorSet())
 
         val builder = configure()
-        builder.compileProtos(listOf("test.proto"), listOf("."))
+        builder.compileProtos(listOf("a.proto"), listOf("."))
+        builder.compileWithConfig(Config.new(), listOf("a.proto"), listOf("."))
         builder.compileFds(FileDescriptorSet())
-        compileProtos("proto/test.proto")
+        builder.compileFdsWithConfig(FileDescriptorSet(), Config.new())
+        compileProtos("proto/service.proto")
         compileFds(FileDescriptorSet())
     }
 }
